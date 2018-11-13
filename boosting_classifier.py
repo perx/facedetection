@@ -52,10 +52,6 @@ class Boosting_Classifier:
 	#self.chosen_wcs should be assigned a value after self.train() finishes
 	#call Weak_Classifier.calc_error() in this function
 	#cache training results to self.visualizer for visualization
-	#
-	#
-	#detailed implementation is up to you
-	#consider caching partial results and using parallel computing
 	def train(self, save_dir = None, load_dir = None):
 		if load_dir is not None:
 			self.chosen_wcs = pickle.load(open(load_dir, 'rb'))
@@ -102,6 +98,20 @@ class Boosting_Classifier:
 
 			weights = new_weights/new_weights.sum()
 
+			#caching for visualizer
+			sc_score = np.array([self.sc_function(im) for im in self.data])
+			self.visualizer.strong_classifier_errors.append(np.mean(np.sign(sc_score) == self.labels))
+			if epoch+1 in (1, 10, 50, 100):
+				top_1000_wcs_idx = np.argsort(wc_errors)[:1000]
+				top_1000_err = []
+				for wc_idx in top_1000_wcs_idx:
+					wc = self.weak_classifiers[wc_idx]
+					predictions = np.array([wc.predict_label(act,wc_thresholds[wc_idx],wc_polarity[wc_idx]) for act in wc.activations])
+					top_1000_err.append(np.mean(predictions == self.labels))
+				self.visualizer.weak_classifier_accuracies[epoch+1] = np.array(sorted(top_1000_err)[::-1])
+				self.visualizer.strong_classifier_scores[epoch+1] = sc_score
+				#self.visualizer.strong_classifier_scores[epoch] = np.array([self.sc_function(im) for im in self.data])
+
 		if save_dir is not None:
 			pickle.dump(self.chosen_wcs, open(save_dir, 'wb'))
 
@@ -143,7 +153,7 @@ class Boosting_Classifier:
 		patches, patch_xyxy = image2patches(scales, img)
 		print('Get Hard Negative in Progress ..., total %d patches' % patches.shape[0])
 		predicts = [self.sc_function(patch) for patch in tqdm(patches)]
-
+		predicts = np.array(predicts)
 		wrong_patches = patches[np.where(predicts > 0), ...]
 
 		return wrong_patches
@@ -153,3 +163,4 @@ class Boosting_Classifier:
 		self.visualizer.draw_histograms()
 		self.visualizer.draw_rocs()
 		self.visualizer.draw_wc_accuracies()
+		self.visualizer.plot_sc_train_error()

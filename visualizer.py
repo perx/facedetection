@@ -9,6 +9,7 @@ class Visualizer:
 		self.top_wc_intervals = top_wc_intervals
 		self.weak_classifier_accuracies = {}
 		self.strong_classifier_scores = {}
+		self.strong_classifier_errors = []
 		self.labels = None
 	
 	def draw_histograms(self):
@@ -64,6 +65,13 @@ class Visualizer:
 			plt.imsave('Haar Filter {}'.format(i), img, origin='lower')
 			#plt.imshow(img, origin='lower')
 			#plt.show()
+		return
+
+	def plot_sc_train_error(self):
+		plt.figure()
+		plt.plot(self.strong_classifier_errors, label='Strong classifier error at T')
+		# plt.legend(loc='upper right')
+		plt.savefig('strong_classifier_error.png')
 		return
 
 if __name__ == '__main__':

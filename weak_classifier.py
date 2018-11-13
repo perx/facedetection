@@ -106,12 +106,13 @@ class Ada_Weak_Classifier(Weak_Classifier):
 		min_err, self.polarity, self.threshold = err_matrix[idx], polarity_matrix[idx], steps[idx]
 		return min_err, steps[idx], polarity_matrix[idx]
 
-	def predict_label(self, activation, threshold=None):
+	def predict_label(self, activation, threshold=None, polarity=None):
 		threshold = self.threshold if threshold is None else threshold
+		polarity = self.polarity if polarity is None else polarity
 		classification = -1
 		if activation > threshold:
 			classification = 1
-		classification *= self.polarity
+		classification *= polarity
 		return classification
 
 	def predict_image(self, integrated_image):
