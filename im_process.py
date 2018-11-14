@@ -91,7 +91,7 @@ def nms(xyxys, overlap_thresh):
 
 		sorted_idx = np.delete(sorted_idx, np.concatenate(([last],np.where(overlap > overlap_thresh)[0])))
 
-	return xyxys[output_idx]
+	return xyxys[output_idx], output_idx
 
 def normalize(images):
 	standard = np.std(images)

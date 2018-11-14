@@ -142,7 +142,7 @@ class Boosting_Classifier:
 		pos_predicts_xyxy = np.array([patch_xyxy[idx] + [score] for idx, score in enumerate(predicts) if score > 0])
 		if pos_predicts_xyxy.shape[0] == 0:
 			return
-		xyxy_after_nms = nms(pos_predicts_xyxy, 0.01)
+		xyxy_after_nms,_ = nms(pos_predicts_xyxy, 0.01)
 		print('after nms:', xyxy_after_nms.shape[0])
 		if img_rgb is not None:
 			img = img_rgb
@@ -158,8 +158,9 @@ class Boosting_Classifier:
 		predicts = [self.sc_function(patch) for patch in tqdm(patches)]
 		predicts = np.array(predicts)
 		wrong_patches = patches[np.where(predicts > 0), ...]
-		patches_after_nms = nms(wrong_patches[0], 0.01)
-		return wrong_patches[0], patches_after_nms
+		pos_predicts_xyxy = np.array([patch_xyxy[idx] + [score] for idx, score in enumerate(predicts) if score > 0])
+		patches_after_nms, nms_patches_idx = nms(pos_predicts_xyxy, 0.01)
+		return wrong_patches[0], wrong_patches[0][nms_patches_idx]
 
 	def visualize(self):
 		self.visualizer.labels = self.labels
