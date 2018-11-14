@@ -85,7 +85,7 @@ class Boosting_Classifier:
 
 			#self.visualizer.weak_classifier_accuracies[epoch]=(1-chosen_wc_err)*100
 
-			print("Chose weak classifier ", np.argmin(wc_errors), ", error = ", chosen_wc_err, ", alpha = ", chosen_alpha)
+			print("WC ",epoch, np.argmin(wc_errors), ", error = ", chosen_wc_err, ", alpha = ", chosen_alpha)
 			print("Time taken = ",(end-start))
 			#3. Update weights of data points
 			new_weights=np.ones(weights.shape)
@@ -100,7 +100,7 @@ class Boosting_Classifier:
 
 			#caching for visualizer
 			sc_score = np.array([self.sc_function(im) for im in self.data])
-			self.visualizer.strong_classifier_errors.append(np.mean(np.sign(sc_score) == self.labels))
+			self.visualizer.strong_classifier_errors.append(1-np.mean(np.sign(sc_score) == self.labels))
 			if epoch+1 in (1, 10, 50, 100):
 				top_1000_wcs_idx = np.argsort(wc_errors)[:1000]
 				top_1000_err = []
@@ -116,7 +116,10 @@ class Boosting_Classifier:
 			pickle.dump(self.chosen_wcs, open(save_dir, 'wb'))
 
 	def sc_function(self, image):
-		return np.sum([np.array([alpha * wc.predict_image(image) for alpha, wc in self.chosen_wcs])])			
+		if self.style == "Ada":
+			return np.sum([np.array([alpha * wc.predict_image(image) for alpha, wc in self.chosen_wcs])])
+		elif self.style == "Real":
+			return np.sum([np.array([wc.predict_image(image) for wc in self.chosen_wcs])])
 
 	def load_trained_wcs(self, save_dir):
 		self.chosen_wcs = pickle.load(open(save_dir, 'rb'))	
@@ -155,8 +158,8 @@ class Boosting_Classifier:
 		predicts = [self.sc_function(patch) for patch in tqdm(patches)]
 		predicts = np.array(predicts)
 		wrong_patches = patches[np.where(predicts > 0), ...]
-
-		return wrong_patches
+		patches_after_nms = nms(wrong_patches[0], 0.01)
+		return wrong_patches[0], patches_after_nms
 
 	def visualize(self):
 		self.visualizer.labels = self.labels

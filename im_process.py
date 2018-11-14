@@ -2,7 +2,6 @@ from sklearn.feature_extraction import image as IMG
 import numpy as np
 import cv2
 from utils import integrate_images
-from operator import itemgetter
 
 #extract patches from the image for all scales of the image
 #return the INTEGREATED images and the coordinates of the patches

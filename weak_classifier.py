@@ -30,8 +30,8 @@ class Weak_Classifier(ABC):
 				 - (0 if rect[1] == 0 else integrated_image[rect[1] - 1, rect[2]])\
 				 - (0 if rect[0] == 0 else integrated_image[rect[3], rect[0] - 1])
 		return pos - neg
-	
-		
+
+
 	#take in a list of integrated images and calculate values for each image
 	#integrated images are passed in as a 3-D np-array
 	#calculate activations for all images BEFORE polarity is applied
@@ -43,7 +43,7 @@ class Weak_Classifier(ABC):
 		if (self.id + 1) % 100 == 0:
 			print('Weak Classifier No. %d has finished applying' % (self.id + 1))
 		return values
-	
+
 	#using this function to compute the error of
 	#applying this weak classifier to the dataset given current weights
 	#return the error and potentially other identifier of this weak classifier
@@ -52,7 +52,7 @@ class Weak_Classifier(ABC):
 	@abstractmethod
 	def calc_error(self, weights, labels):
 		pass
-	
+
 	@abstractmethod
 	def predict_image(self, integrated_image):
 		pass
@@ -88,16 +88,18 @@ class Ada_Weak_Classifier(Weak_Classifier):
 		steps = np.linspace(np.amin(self.activations), np.amax(self.activations), step_size)
 		# error_list = Parallel(n_jobs=-1)(delayed(calc_err_at_t)(t) for t in steps)
 		# min_err, self.polarity, self.threshold=min(error_list)
-		predictions=np.sign(steps - np.tile(self.activations, (step_size, 1)).transpose()).transpose()
-		comparison = (predictions==np.tile(labels,(step_size,1)))
+		predictions = np.sign((np.tile(self.activations, (step_size, 1)).transpose() - steps).transpose())
+		comparison = (predictions != np.tile(labels,(step_size,1)))
 		err_matrix=(comparison*weights).sum(axis=1)
+		#err_matrix = np.matmul(comparison, weights)
+
 		polarity_matrix=np.ones(err_matrix.shape[0])
 		for i in range(err_matrix.shape[0]):
 			if err_matrix[i]>0.5:
 				err_matrix[i]=1-err_matrix[i]
 				polarity_matrix[i]=-1
-		# idx = err_matrix>0.5
-		# err_matrix[idx]=1-err_matrix[idx]
+		# idx = err_matrix > 0.5
+		# err_matrix[idx] = 1 - err_matrix[idx]
 		# polarity_matrix[idx] = -1
 		#polarity_matrix=np.sign(0.5-err_matrix)
 		# polarity_matrix[polarity_matrix==0]=1
@@ -131,11 +133,27 @@ class Real_Weak_Classifier(Weak_Classifier):
 		######################
 		######## TODO ########
 		######################
-		return
-	
+		self.bin_pqs = np.zeros((2, self.num_bins))
+		self.train_assignment = np.zeros(len(self.activations))
+		self.thresholds = np.linspace(np.amin(self.activations), np.amax(self.activations), self.num_bins)
+		labels = np.array(labels)
+		for i in range(len(self.thresholds)-1):
+			if i == 0:
+				a_idx = np.where((self.thresholds[i+1] >= self.activations) & (self.thresholds[i] <= self.activations))
+			else:
+				a_idx = np.where((self.thresholds[i+1] > self.activations) & (self.thresholds[i] <= self.activations))
+			self.train_assignment[a_idx] = i
+			self.bin_pqs[0][i] = np.sum(weights[np.where(labels[a_idx] == 1)]) or 1e-6
+			self.bin_pqs[1][i] = np.sum(weights[np.where(labels[a_idx] == -1)]) or 1e-6
+			print("Classifier ",self.id, "Bin ", i+1, " ",self.thresholds[i], " to ", self.thresholds[i+1])
+		return self.bin_pqs
+
 	def predict_image(self, integrated_image):
 		value = self.apply_filter2image(integrated_image)
-		bin_idx = np.sum(self.thresholds < value)
+		bin_idx = np.sum(self.thresholds <= value) - 1
+
+		if(bin_idx == -1):
+			bin_idx = 0
 		return 0.5 * np.log(self.bin_pqs[0, bin_idx] / self.bin_pqs[1, bin_idx])
 
 

@@ -5,6 +5,7 @@ from boosting_classifier import Boosting_Classifier
 from visualizer import Visualizer
 from im_process import normalize
 from utils import *
+import pickle
 
 def main():
 	#flag for debugging
@@ -39,7 +40,7 @@ def main():
 
 	#calculate filter values for all training images
 	start = time.clock()
-	boost.calculate_training_activations(act_cache_dir, act_cache_dir)
+	b_activations = boost.calculate_training_activations(act_cache_dir, act_cache_dir)
 	end = time.clock()
 	print('%f seconds for activation calculation' % (end - start))
 
@@ -47,34 +48,53 @@ def main():
 	#boost.visualizer.display_haar(boost.chosen_wcs,20)
 	#boost.visualize()
 
-	# test_img = './Test/audrey.jpeg'
+	# test_img = './Test/test_crop.jpg'
 	# original_img = cv2.imread(test_img, cv2.IMREAD_GRAYSCALE)
 	# img_rgb = cv2.imread(test_img)
 	# result_img = boost.face_detection(original_img, img_rgb)
 	# cv2.imwrite('Result_img_%s.png' % boosting_type, result_img)
 
 	#negative training
-	negative_patches1 = boost.get_hard_negative_patches(cv2.imread('./Test/Non_face_1.jpg', cv2.IMREAD_GRAYSCALE))[0]
-	negative_patches2 = boost.get_hard_negative_patches(cv2.imread('./Test/Non_face_2.jpg', cv2.IMREAD_GRAYSCALE))[0]
+	# negative_patches, negative_patches_nms = boost.get_hard_negative_patches(cv2.imread('./Test/Non_face_3.jpg', cv2.IMREAD_GRAYSCALE))
+	# print(negative_patches.shape, negative_patches_nms.shape)
+	# pickle.dump(negative_patches, open("negative_patches_3.pkl", 'wb'))
+	# pickle.dump(negative_patches_nms, open("negative_patches_nms_3.pkl", 'wb'))
+	# nhm_labels = np.ones(negative_patches.shape[0])*-1
+	# boost.data = np.concatenate((boost.data,negative_patches))
+	# boost.labels = np.concatenate((boost.labels,nhm_labels))
+	#
+	# # calculate filter values for all training images
+	# start = time.clock()
+	# boost.calculate_training_activations("wc_activations_nms.npy")
+	# end = time.clock()
+	# print('%f seconds for activation calculation' % (end - start))
 
-	negative_patches = np.concatenate((negative_patches1,negative_patches2))
-	nhm_labels = np.ones(negative_patches.shape[0])*-1
-	boost.data = np.concatenate((boost.data,negative_patches))
-	boost.labels = np.concatenate((boost.labels,nhm_labels))
+	# boost.train("chosen_wcs_nhm.pkl")
+	# boost.visualizer.display_haar(boost.chosen_wcs, 20)
+	# boost.visualize()
+	# test_img = './Test/Face_1.jpg'
+	# original_img = cv2.imread(test_img, cv2.IMREAD_GRAYSCALE)
+	# img_rgb = cv2.imread(test_img)
+	# result_img = boost.face_detection(original_img, img_rgb)
+	# cv2.imwrite('Result_img_%s.png' % boosting_type, result_img)
 
-	# calculate filter values for all training images
-	start = time.clock()
-	boost.calculate_training_activations("wc_activations_nms.npy")
-	end = time.clock()
-	print('%f seconds for activation calculation' % (end - start))
-
-	boost.train("chosen_wcs_nhm.pkl")
-
-	test_img = './Test/Face_1.jpg'
-	original_img = cv2.imread(test_img, cv2.IMREAD_GRAYSCALE)
-	img_rgb = cv2.imread(test_img)
-	result_img = boost.face_detection(original_img, img_rgb)
-	cv2.imwrite('Result_img_%s.png' % boosting_type, result_img)
+	realboost = Boosting_Classifier(filters, data, labels, training_epochs, 25, Visualizer([10, 20, 50, 100], [1, 10, 20, 50, 100]), num_cores, 'Real')
+	realboost.chosen_wcs = []
+	weights = np.ones(data.shape[0])*(1/data.shape[0])
+	for wci,(a,wc) in enumerate(boost.chosen_wcs):
+		rbc = realboost.weak_classifiers[wc.id]
+		rbc.activations = b_activations[wc.id]
+		pq = rbc.calc_error(weights, realboost.labels)
+		realboost.chosen_wcs.append(rbc)
+		new_weights = np.ones(weights.shape)
+		for ac_idx, img in enumerate(realboost.data):
+			reduction_factor = rbc.predict_image(img) * realboost.labels[ac_idx] * -1
+			new_weights[ac_idx] = weights[ac_idx] * (np.exp(reduction_factor))
+		weights = new_weights / new_weights.sum()
+		if wci + 1 in (1, 10, 50, 100):
+			realboost.visualizer.strong_classifier_scores[wci + 1] = np.array([realboost.sc_function(im) for im in realboost.data])
+		print("Trained WC ",wci)
+	realboost.visualize()
 
 if __name__ == '__main__':
 	main()
