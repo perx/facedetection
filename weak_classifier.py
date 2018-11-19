@@ -133,26 +133,21 @@ class Real_Weak_Classifier(Weak_Classifier):
 		######################
 		######## TODO ########
 		######################
-		self.bin_pqs = np.zeros((2, self.num_bins))
+		self.bin_pqs = np.ones((2, self.num_bins))*1e-6
 		self.train_assignment = np.zeros(len(self.activations))
 		self.thresholds = np.linspace(np.amin(self.activations), np.amax(self.activations), self.num_bins)
-		labels = np.array(labels)
 		self.train_assignment = np.digitize(self.activations, self.thresholds, right=True)
-		for i in range(len(self.thresholds)):
-			a_idx = np.where(self.train_assignment == i)
-			self.bin_pqs[0][i] = np.sum(weights[np.where(labels[a_idx] == 1)]) or 1e-6
-			self.bin_pqs[1][i] = np.sum(weights[np.where(labels[a_idx] == -1)]) or 1e-6
-			print("Classifier ",self.id, "Bin ", i," p ",self.bin_pqs[0][i]," q ", self.bin_pqs[1][i])
+		for i,a in enumerate(self.activations):
+			if labels[i] == 1:
+				self.bin_pqs[0][self.train_assignment[i]] += weights[i]
+			else:
+				self.bin_pqs[1][self.train_assignment[i]] += weights[i]
+		print("Classifier ",self.id, " p ",self.bin_pqs[0]," q ", self.bin_pqs[1])
 		return self.bin_pqs
 
 	def predict_image(self, integrated_image):
 		value = self.apply_filter2image(integrated_image)
-		bin_idx = np.sum(self.thresholds < value) - 1
-		if bin_idx == -1:
-			bin_id = 0
-		out = 0.5 * np.log(self.bin_pqs[0, bin_idx] / self.bin_pqs[1, bin_idx])
-		if np.isnan(out):
-			print("")
+		bin_idx = np.sum(self.thresholds < value)
 		return 0.5 * np.log(self.bin_pqs[0, bin_idx] / self.bin_pqs[1, bin_idx])
 
 

@@ -102,13 +102,14 @@ class Boosting_Classifier:
 			sc_score = np.array([self.sc_function(im) for im in self.data])
 			self.visualizer.strong_classifier_errors.append(1-np.mean(np.sign(sc_score) == self.labels))
 			if epoch+1 in (1, 10, 50, 100):
-				top_1000_wcs_idx = np.argsort(wc_errors)[:1000]
-				top_1000_err = []
-				for wc_idx in top_1000_wcs_idx:
-					wc = self.weak_classifiers[wc_idx]
-					predictions = np.array([wc.predict_label(act,wc_thresholds[wc_idx],wc_polarity[wc_idx]) for act in wc.activations])
-					top_1000_err.append(np.mean(predictions == self.labels))
-				self.visualizer.weak_classifier_accuracies[epoch+1] = np.array(sorted(top_1000_err)[::-1])
+				#top_1000_wcs_idx = np.argsort(wc_errors)[:1000]
+				top_1000_err = np.sort(wc_errors)[:1000]
+				#top_1000_err = wc_errors[top_1000_wcs_idx]
+				#for wc_idx in top_1000_wcs_idx:
+					#wc = self.weak_classifiers[wc_idx]
+					#predictions = np.array([wc.predict_label(act,wc_thresholds[wc_idx],wc_polarity[wc_idx]) for act in wc.activations])
+					#top_1000_err.append(np.mean(predictions == self.labels))
+				self.visualizer.weak_classifier_accuracies[epoch+1] = np.array(sorted(top_1000_err))
 				self.visualizer.strong_classifier_scores[epoch+1] = sc_score
 				#self.visualizer.strong_classifier_scores[epoch] = np.array([self.sc_function(im) for im in self.data])
 
@@ -116,10 +117,7 @@ class Boosting_Classifier:
 			pickle.dump(self.chosen_wcs, open(save_dir, 'wb'))
 
 	def sc_function(self, image):
-		if self.style == "Ada":
-			return np.sum([np.array([alpha * wc.predict_image(image) for alpha, wc in self.chosen_wcs])])
-		elif self.style == "Real":
-			return np.sum([np.array([wc.predict_image(image) for wc in self.chosen_wcs])])
+		return np.sum([np.array([alpha * wc.predict_image(image) for alpha, wc in self.chosen_wcs])])
 
 	def load_trained_wcs(self, save_dir):
 		self.chosen_wcs = pickle.load(open(save_dir, 'rb'))	
@@ -148,7 +146,13 @@ class Boosting_Classifier:
 			img = img_rgb
 		for idx in range(xyxy_after_nms.shape[0]):
 			pred = xyxy_after_nms[idx, :]
-			cv2.rectangle(img, (int(pred[0]), int(pred[1])), (int(pred[2]), int(pred[3])), (0, 255, 0), 2) #gree rectangular with line width 3
+			if pred[4] > 0.5:
+				color = (0, 255, 0)
+			elif pred[4] > 0.25:
+				color = (0, 255, 255)
+			else:
+				color = (0, 0, 255)
+			cv2.rectangle(img, (int(pred[0]), int(pred[1])), (int(pred[2]), int(pred[3])), color, 2) #gree rectangular with line width 3
 		return img
 
 	def get_hard_negative_patches(self, img, scale_step = 10):

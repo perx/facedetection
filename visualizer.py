@@ -46,9 +46,9 @@ class Visualizer:
 			plt.plot(accuracies, label = 'After %d Selection' % t)
 		plt.ylabel('Accuracy')
 		plt.xlabel('Weak Classifiers')
-		plt.title('Top 1000 Weak Classifier Accuracies')
+		plt.title('Top 1000 Weak Classifier Errors')
 		plt.legend(loc = 'upper right')
-		plt.savefig('Weak Classifier Accuracies')
+		plt.savefig('Weak Classifier Errors')
 
 	def display_haar(self, wcs, n):
 		white=(255, 255, 255)
@@ -71,6 +71,8 @@ class Visualizer:
 		plt.figure()
 		plt.plot(self.strong_classifier_errors, label='Strong classifier error at T')
 		# plt.legend(loc='upper right')
+		plt.ylabel('Strong Classifier Error')
+		plt.xlabel('Weak Classifiers/Epochs')
 		plt.savefig('strong_classifier_error.png')
 		return
 
